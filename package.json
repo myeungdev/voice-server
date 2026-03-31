@@ -1,5 +1,5 @@
 {
-  "name": "voice-server",
+  "name": "@myeungdev/voice-server",
   "version": "1.0.0",
   "type": "module",
   "exports": {
@@ -13,6 +13,9 @@
   "files": [
     "dist"
   ],
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
   "scripts": {
     "build": "tsc"
   },

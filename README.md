@@ -17,14 +17,14 @@ Client → [binary audio chunks] → WebSocket → STT → AgentHandler → TTS 
 ## Installation
 
 ```bash
-pnpm add voice-server
+pnpm add @myeungdev/voice-server
 ```
 
 ## Usage
 
 ```typescript
-import { startServer } from "voice-server";
-import type { AgentHandler } from "voice-server";
+import { startServer } from "@myeungdev/voice-server";
+import type { AgentHandler } from "@myeungdev/voice-server";
 
 const handler: AgentHandler = async (transcript, history) => {
   // Call your LLM, use history for context, return a response
