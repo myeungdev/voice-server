@@ -10,6 +10,13 @@ function send(ws: WebSocket, msg: WsServerMessage): void {
   ws.send(JSON.stringify(msg));
 }
 
+// Split buffer into complete sentences (ending with .!?) and a leftover remainder.
+function extractSentences(buffer: string): [sentences: string[], remaining: string] {
+  const parts = buffer.split(/(?<=[.!?])\s+/);
+  const sentences = parts.slice(0, -1).map((s) => s.trim()).filter(Boolean);
+  return [sentences, parts[parts.length - 1]];
+}
+
 async function handleUtterance(
   ws: WebSocket,
   session: Session,
@@ -24,16 +31,37 @@ async function handleUtterance(
     const transcript = await transcribe(buffer);
     send(ws, { type: "transcription", text: transcript });
 
-    const { text, updatedHistory } = await handler(transcript, session.history);
-    session.history = updatedHistory;
-
-    send(ws, { type: "response_text", text });
+    const { textStream, updatedHistory } = await handler(transcript, session.history);
 
     send(ws, { type: "audio_start" });
-    for await (const chunk of synthesizeStream(text)) {
-      send(ws, { type: "audio_chunk", data: chunk.toString("base64") });
+
+    let textBuffer = "";
+    let fullText = "";
+
+    for await (const chunk of textStream) {
+      textBuffer += chunk;
+      fullText += chunk;
+      const [sentences, remaining] = extractSentences(textBuffer);
+      textBuffer = remaining;
+      for (const sentence of sentences) {
+        for await (const audioChunk of synthesizeStream(sentence)) {
+          send(ws, { type: "audio_chunk", data: audioChunk.toString("base64") });
+        }
+      }
     }
+
+    // Synthesize any remaining text that didn't end with punctuation
+    if (textBuffer.trim()) {
+      for await (const audioChunk of synthesizeStream(textBuffer.trim())) {
+        send(ws, { type: "audio_chunk", data: audioChunk.toString("base64") });
+      }
+      fullText = fullText.trimEnd();
+    }
+
     send(ws, { type: "audio_end" });
+    send(ws, { type: "response_text", text: fullText });
+
+    session.history = await updatedHistory;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     send(ws, { type: "error", message });

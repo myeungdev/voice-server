@@ -16,7 +16,10 @@ export type WsClientMessage = { type: "audio_end" };
 export type AgentHandler = (
   transcript: string,
   history: BaseMessage[],
-) => Promise<{ text: string; updatedHistory: BaseMessage[] }>;
+) => Promise<{
+  textStream: AsyncIterable<string>;
+  updatedHistory: Promise<BaseMessage[]>;
+}>;
 
 export interface Session {
   id: string;
