@@ -1,10 +1,10 @@
 import { WebSocketServer, WebSocket } from "ws";
 import { randomUUID } from "crypto";
 import { transcribe } from "./services/stt.js";
-import { synthesize } from "./services/tts.js";
+import { synthesizeStream } from "./services/tts.js";
 import type { AgentHandler, WsServerMessage, WsClientMessage, Session, ServerOptions } from "./types.js";
 
-export { synthesize };
+export { synthesizeStream };
 
 function send(ws: WebSocket, msg: WsServerMessage): void {
   ws.send(JSON.stringify(msg));
@@ -29,10 +29,10 @@ async function handleUtterance(
 
     send(ws, { type: "response_text", text });
 
-    const wavBuffer = await synthesize(text);
-
     send(ws, { type: "audio_start" });
-    send(ws, { type: "audio_chunk", data: wavBuffer.toString("base64") });
+    for await (const chunk of synthesizeStream(text)) {
+      send(ws, { type: "audio_chunk", data: chunk.toString("base64") });
+    }
     send(ws, { type: "audio_end" });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
